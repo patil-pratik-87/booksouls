@@ -1,0 +1,10 @@
+# Core dependencies for BookSouls Chapter Chunker
+PyMuPDF>=1.23.0          # PDF processing (fitz)
+langchain-text-splitters>=0.2.0  # Text chunking
+tiktoken>=0.7.0          # Token counting
+python-dotenv>=1.0.0     # Environment variables
+
+# Optional dependencies (if using other features)
+langchain>=0.2.0         # Full LangChain if needed
+langchain-openai>=0.1.0  # OpenAI integration
+pydantic>=2.0.0         # Data validation
