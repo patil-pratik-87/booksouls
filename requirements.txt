@@ -8,3 +8,14 @@ python-dotenv>=1.0.0     # Environment variables
 langchain>=0.2.0         # Full LangChain if needed
 langchain-openai>=0.1.0  # OpenAI integration
 pydantic>=2.0.0         # Data validation
+
+# FastAPI and web server dependencies
+fastapi>=0.104.0         # FastAPI framework
+uvicorn>=0.24.0          # ASGI server
+python-multipart>=0.0.6  # File upload support
+
+# Vector store dependencies
+chromadb>=0.4.17         # Vector database
+
+# Additional API dependencies
+requests>=2.31.0         # HTTP client for testing

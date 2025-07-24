@@ -77,8 +77,24 @@ material/
 notes.md
 test.ipynb
 
+# Vector stores
+stores/
+vector_stores/
+test_vector_stores/
+*_vector_stores/
+*.sqlite3
+
 # Claude
 .claude/
 
 # Jupyter
 .ipynb_checkpoints/
+
+# Node.js / UI
+ui/*/node_modules/
+ui/*/dist/
+ui/*/.vite/
+ui/*/.npm/
+ui/*/npm-debug.log*
+ui/*/yarn-debug.log*
+ui/*/yarn-error.log*

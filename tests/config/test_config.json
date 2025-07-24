@@ -1,0 +1,13 @@
+{
+  "use_openai": true,
+  "openai_api_key": null,
+  "base_persist_dir": "./vector_stores",
+  "data_base_dir": "../data/outputs",
+  "skip_indexing_if_exists": true,
+  "default_n_results": 3,
+  "max_results_display": 5,
+  "content_preview_length": 150,
+  "interactive_mode": true,
+  "verbose_output": true,
+  "auto_load_latest_data": true
+}
