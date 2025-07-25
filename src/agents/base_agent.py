@@ -11,6 +11,15 @@ from crewai import Agent
 from langchain_openai import ChatOpenAI
 from langchain.memory import ConversationBufferWindowMemory
 
+try:
+    from ..logs import log_llm_request, log_llm_response, LLMTimer
+except ImportError:
+    # For testing when running directly
+    import sys
+    import os
+    sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
+    from src.logs import log_llm_request, log_llm_response, LLMTimer
+
 
 @dataclass
 class AgentConfig:
@@ -50,6 +59,10 @@ class BaseAgent(ABC):
             max_tokens=config.max_tokens
         )
         
+        # Wrap LLM with logging
+        self._original_llm_call = self.llm._call
+        self.llm._call = self._logged_llm_call
+        
         # Create CrewAI agent
         self.agent = Agent(
             role=config.role,
@@ -60,6 +73,40 @@ class BaseAgent(ABC):
             llm=self.llm,
             memory=True
         )
+    
+    def _logged_llm_call(self, prompt: str, stop: List[str] = None, **kwargs) -> str:
+        """Wrapper for LLM calls that adds logging."""
+        # Log the request
+        log_id = log_llm_request(
+            model_type="openai",
+            model_name=self.config.model_name,
+            request_type="agent_interaction",
+            prompt=prompt,
+            temperature=self.config.temperature,
+            max_tokens=self.config.max_tokens,
+            metadata={
+                "agent_name": self.config.name,
+                "agent_role": self.config.role
+            }
+        )
+        
+        try:
+            with LLMTimer("agent_llm_call") as timer:
+                response = self._original_llm_call(prompt, stop=stop, **kwargs)
+            
+            # Log the successful response
+            log_llm_response(
+                log_id,
+                response,
+                response_time_ms=int(timer.get_elapsed_ms())
+            )
+            
+            return response
+            
+        except Exception as e:
+            error_msg = f"Agent LLM call error: {str(e)}"
+            log_llm_response(log_id, "", error=error_msg)
+            raise e
     
     @abstractmethod
     def generate_system_prompt(self) -> str:

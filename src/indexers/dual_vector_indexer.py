@@ -10,7 +10,7 @@ Each store uses optimized embedding strategies for their specific use case.
 
 import chromadb
 from chromadb.config import Settings
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 import json
 import time
 import datetime
@@ -214,6 +214,42 @@ class DualVectorIndexer:
                 })
                 ids.append(f"{dialogue.character}_{dialogue.scene_id}_{i}")
         
+        # Index character profiles for semantic search
+        for character, profiles in dialogue_index.character_profiles.items():
+            for profile in profiles:
+                # Use the new to_json_string method to get JSON representation
+                profile_json = profile.to_json_string()
+                
+                documents.append(profile_json)
+                # Extract personality traits text for metadata
+                if profile.personality_traits:
+                    if isinstance(profile.personality_traits[0], dict):
+                        personality_text = ', '.join([trait.get('trait', '') for trait in profile.personality_traits if trait.get('trait')])
+                    else:
+                        personality_text = ', '.join(profile.personality_traits)
+                else:
+                    personality_text = ''
+                
+                # Extract motivations text for metadata
+                if profile.motivations:
+                    if isinstance(profile.motivations[0], dict):
+                        motivations_text = ', '.join([mot.get('motivation', '') or mot.get('goal', '') for mot in profile.motivations])
+                    else:
+                        motivations_text = ', '.join(profile.motivations)
+                else:
+                    motivations_text = ''
+                
+                metadatas.append({
+                    "type": "character_profile",
+                    "character": profile.name,
+                    "chapter_number": profile.chapter_number,
+                    "personality_traits": personality_text,
+                    "motivations": motivations_text,
+                    "emotional_state": profile.emotional_state,
+                    "dialogue_count": profile.dialogue_count,
+                })
+                ids.append(f"profile_{profile.name}_ch{profile.chapter_number}")
+        
         # Add to dialogue collection
         self.dialogue_collection.add(
             documents=documents,
@@ -223,10 +259,13 @@ class DualVectorIndexer:
         
         processing_time = time.time() - start_time
         
+        character_profile_count = sum(len(profiles) for profiles in dialogue_index.character_profiles.values())
+        
         result = {
             'total_chunks': len(documents),
             'scene_chunks': len(dialogue_index.scenes),
-            'character_dialogue_chunks': len(documents) - len(dialogue_index.scenes),
+            'character_dialogue_chunks': len(documents) - len(dialogue_index.scenes) - character_profile_count,
+            'character_profile_chunks': character_profile_count,
             'characters_indexed': len(dialogue_index.characters),
             'processing_time': processing_time,
             'collection_name': self.dialogue_collection_name
@@ -400,6 +439,29 @@ class DualVectorIndexer:
         """Search for content by theme."""
         return self.query_narrative(
             query=f"theme {theme}",
+            n_results=n_results
+        )
+    
+    def query_character_profiles(self, query: str, n_results: int = 5) -> Dict[str, Any]:
+        """Search character profiles by traits, motivations, etc."""
+        return self.query_dialogue(
+            query=query,
+            n_results=n_results,
+            where={"type": "character_profile"}
+        )
+    
+    def find_similar_characters(self, character: str, n_results: int = 3) -> Dict[str, Any]:
+        """Find characters similar to the given character."""
+        return self.query_character_profiles(
+            query=f"character personality like {character}",
+            n_results=n_results
+        )
+    
+    def get_character_by_traits(self, traits: List[str], n_results: int = 5) -> Dict[str, Any]:
+        """Find characters with specific personality traits."""
+        traits_query = " ".join(traits)
+        return self.query_character_profiles(
+            query=f"personality traits {traits_query}",
             n_results=n_results
         )
     

@@ -24,7 +24,10 @@ import {
   Person as PersonIcon,
   Book as BookIcon,
   TheaterComedy as TheaterIcon,
-  Refresh as RefreshIcon
+  Refresh as RefreshIcon,
+  Psychology as PsychologyIcon,
+  FindInPage as FindInPageIcon,
+  Group as GroupIcon
 } from '@mui/icons-material';
 import { API_ENDPOINTS, apiCall } from '../config/api';
 import VectorResultDetail from './VectorResultDetail';
@@ -35,6 +38,8 @@ const VectorQueryInterface = () => {
   const [character, setCharacter] = useState('');
   const [chapterNumber, setChapterNumber] = useState('');
   const [theme, setTheme] = useState('');
+  const [characterTraits, setCharacterTraits] = useState('');
+  const [similarCharacter, setSimilarCharacter] = useState('');
   const [results, setResults] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -64,7 +69,8 @@ const VectorQueryInterface = () => {
   };
 
   const performQuery = async () => {
-    if (!query.trim() && queryType !== 'character' && queryType !== 'chapter') return;
+    if (!query.trim() && queryType !== 'character' && queryType !== 'chapter' && 
+        queryType !== 'character_traits' && queryType !== 'similar_character') return;
 
     setLoading(true);
     setError(null);
@@ -87,6 +93,14 @@ const VectorQueryInterface = () => {
           break;
         case 'theme':
           body.theme = theme;
+          break;
+        case 'character_traits':
+          body.query = characterTraits;
+          body.type = 'character_profiles';
+          break;
+        case 'similar_character':
+          body.query = `character personality like ${similarCharacter}`;
+          body.type = 'character_profiles';
           break;
       }
 
@@ -162,6 +176,32 @@ const VectorQueryInterface = () => {
             onChange={(e) => setTheme(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="Enter theme to search..."
+            variant="outlined"
+          />
+        );
+      case 'character_traits':
+        return (
+          <TextField
+            fullWidth
+            label="Character Traits"
+            value={characterTraits}
+            onChange={(e) => setCharacterTraits(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder="Enter traits (e.g., brave, wise, conflicted)..."
+            variant="outlined"
+            multiline
+            rows={2}
+          />
+        );
+      case 'similar_character':
+        return (
+          <TextField
+            fullWidth
+            label="Character Name"
+            value={similarCharacter}
+            onChange={(e) => setSimilarCharacter(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder="Enter character name to find similar..."
             variant="outlined"
           />
         );
@@ -251,6 +291,24 @@ const VectorQueryInterface = () => {
                       label={metadatas[index].type}
                       size="small"
                       color="primary"
+                    />
+                  )}
+
+                  {metadatas[index]?.personality_traits && (
+                    <Chip
+                      icon={<PsychologyIcon />}
+                      label={metadatas[index].personality_traits.split(',')[0] + '...'}
+                      size="small"
+                      color="info"
+                    />
+                  )}
+
+                  {metadatas[index]?.emotional_state && (
+                    <Chip
+                      label={`Mood: ${metadatas[index].emotional_state}`}
+                      size="small"
+                      color="secondary"
+                      variant="outlined"
                     />
                   )}
                 </Box>
@@ -369,6 +427,18 @@ const VectorQueryInterface = () => {
                   <Box sx={{ display: 'flex', alignItems: 'center' }}>
                     <SearchIcon sx={{ mr: 1 }} />
                     Theme Search
+                  </Box>
+                </MenuItem>
+                <MenuItem value="character_traits">
+                  <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                    <PsychologyIcon sx={{ mr: 1 }} />
+                    Character Traits
+                  </Box>
+                </MenuItem>
+                <MenuItem value="similar_character">
+                  <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                    <GroupIcon sx={{ mr: 1 }} />
+                    Similar Characters
                   </Box>
                 </MenuItem>
               </Select>

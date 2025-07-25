@@ -117,10 +117,31 @@ def load_real_data(config=None):
             ) for d in char_dialogues
         ]
     
+    # Load character profiles if they exist
+    character_profiles = {}
+    if 'character_profiles' in dialogue_data:
+        from src.chunkers.dialogue_chunker import CharacterProfile
+        for character, profiles_data in dialogue_data['character_profiles'].items():
+            profiles = []
+            for p_data in profiles_data:
+                profile = CharacterProfile(
+                    name=p_data['name'],
+                    chapter_number=p_data['chapter_number'],
+                    personality_traits=p_data['personality_traits'],
+                    motivations=p_data['motivations'],
+                    speech_style=p_data['speech_style'],
+                    dialogue_count=p_data['dialogue_count'],
+                    key_relationships=p_data['key_relationships'],
+                    emotional_state=p_data['emotional_state']
+                )
+                profiles.append(profile)
+            character_profiles[character] = profiles
+
     dialogue_index = DialogueIndex(
         scenes=scenes,
         by_character=by_character,
         by_chapter={},
+        character_profiles=character_profiles,
         total_dialogues=dialogue_data['total_dialogues'],
         total_scenes=dialogue_data['total_scenes'],
         characters=dialogue_data['characters'],
@@ -180,10 +201,10 @@ def index_data(indexer, test_config=None):
     stats = indexer.get_stats()
     if stats['total_documents'] > 0 and test_config.skip_indexing_if_exists:
         if test_config.verbose_output:
-            print(f"✅ Collections already indexed with {stats['total_documents']} documents")
-            print(f"   Narrative: {stats['narrative_store']['document_count']} docs")
-            print(f"   Dialogue: {stats['dialogue_store']['document_count']} docs")
-            print("⏭️  Skipping indexing...")
+            print(f"Collections already indexed with {stats['total_documents']} documents")
+            print(f"Narrative: {stats['narrative_store']['document_count']} docs")
+            print(f"Dialogue: {stats['dialogue_store']['document_count']} docs")
+            print("Skipping indexing...")
         return indexer
     
     section_index, dialogue_index = load_real_data(test_config)
@@ -216,6 +237,9 @@ def interactive_query(indexer, test_config=None):
     print("  c <character> - Get character dialogues")
     print("  ch <number>   - Get chapter content")
     print("  t <theme>     - Search by theme")
+    print("  p <query>     - Search character profiles")
+    print("  traits <trait> - Find characters by trait")
+    print("  similar <char> - Find similar characters")
     print("  stats         - Show statistics")
     print("  help          - Show commands")
     print("  quit          - Exit")
@@ -238,6 +262,9 @@ def interactive_query(indexer, test_config=None):
                 print("  c <character> - Get character dialogues")
                 print("  ch <number>   - Get chapter content")
                 print("  t <theme>     - Search by theme")
+                print("  p <query>     - Search character profiles")
+                print("  traits <trait> - Find characters by trait")
+                print("  similar <char> - Find similar characters")
                 print("  stats         - Show statistics")
                 
             elif user_input.lower() == 'stats':
@@ -278,6 +305,24 @@ def interactive_query(indexer, test_config=None):
                 if theme:
                     results = indexer.get_thematic_content(theme, n_results=test_config.default_n_results)
                     print_results(results, f"Theme: {theme}", test_config)
+                    
+            elif user_input.startswith('p '):
+                query = user_input[2:].strip()
+                if query:
+                    results = indexer.query_character_profiles(query, n_results=test_config.default_n_results)
+                    print_results(results, f"Character Profiles: '{query}'", test_config)
+                    
+            elif user_input.startswith('traits '):
+                trait = user_input[7:].strip()
+                if trait:
+                    results = indexer.get_character_by_traits([trait], n_results=test_config.default_n_results)
+                    print_results(results, f"Characters with trait: {trait}", test_config)
+                    
+            elif user_input.startswith('similar '):
+                character = user_input[8:].strip()
+                if character:
+                    results = indexer.find_similar_characters(character, n_results=test_config.default_n_results)
+                    print_results(results, f"Characters similar to: {character}", test_config)
                     
             else:
                 print("❌ Unknown command. Type 'help' for commands.")

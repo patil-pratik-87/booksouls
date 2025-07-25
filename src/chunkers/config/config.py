@@ -57,6 +57,10 @@ class DialogueChunkerConfig:
     custom_prompt: str = None       # Custom extraction prompt (uses default if None)
     skip_non_dialogue: bool = True  # Skip chunks without dialogue markers
     
+    # ── Character analysis settings ────────────────────────────────
+    top_characters_per_chapter: int = 4    # Number of top characters to analyze per chapter
+    max_sample_dialogues: int = 7        # Max dialogue samples for character analysis
+    
     # ── Ollama-specific settings ───────────────────────────────────
     ollama_url: str = "http://localhost:11434/api/generate"
     ollama_stop_tokens: List[str] = field(

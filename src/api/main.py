@@ -229,6 +229,11 @@ async def query_indexer(request: QueryRequest):
                 raise HTTPException(status_code=400, detail="Theme required for theme search")
             result = indexer.get_thematic_content(request.theme, request.n_results or 5)
             
+        elif request.type == "character_profiles":
+            if not request.query:
+                raise HTTPException(status_code=400, detail="Query required for character profile search")
+            result = indexer.query_character_profiles(request.query, request.n_results or 5)
+            
         else:
             raise HTTPException(status_code=400, detail=f"Unknown query type: {request.type}")
         

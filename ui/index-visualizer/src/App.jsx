@@ -5,11 +5,13 @@ import SectionAnalyzer from './components/SectionAnalyzer';
 import ChapterAnalyzer from './components/ChapterAnalyzer';
 import DialogAnalyzer from './components/DialogAnalyzer';
 import VectorQueryInterface from './components/VectorQueryInterface';
+import CharacterDashboard from './components/CharacterDashboard';
 
 function App() {
   const [sections, setSections] = useState([]);
   const [chapters, setChapters] = useState([]);
   const [dialogs, setDialogs] = useState([]);
+  const [characterProfiles, setCharacterProfiles] = useState({});
   const [tab, setTab] = useState(0);
 
   const handleDataLoad = (data) => {
@@ -35,6 +37,13 @@ function App() {
         setTab(2);
       }
     }
+    if (data.character_profiles) {
+      setCharacterProfiles(data.character_profiles);
+      // Auto-select character profiles tab if there are character profiles
+      if (Object.keys(data.character_profiles).length > 0) {
+        setTab(3);
+      }
+    }
   };
 
 
@@ -49,6 +58,7 @@ function App() {
             <Tab label="Section Index" disabled={sections.length === 0} />
             <Tab label="Chapter Index" disabled={chapters.length === 0} />
             <Tab label="Dialog Index" disabled={dialogs.length === 0} />
+            <Tab label="Character Profiles" disabled={Object.keys(characterProfiles).length === 0} />
             <Tab label="Vector Query" />
           </Tabs>
         </Box>
@@ -56,7 +66,8 @@ function App() {
         {tab === 0 && <SectionAnalyzer sections={sections} />}
         {tab === 1 && <ChapterAnalyzer chapters={chapters} />}
         {tab === 2 && <DialogAnalyzer dialogs={dialogs} />}
-        {tab === 3 && <VectorQueryInterface />}
+        {tab === 3 && <CharacterDashboard characterProfiles={characterProfiles} />}
+        {tab === 4 && <VectorQueryInterface />}
       </>
 
     </>

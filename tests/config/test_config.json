@@ -1,7 +1,7 @@
 {
   "use_openai": true,
   "openai_api_key": null,
-  "base_persist_dir": "./vector_stores",
+  "base_persist_dir": "../vector_stores",
   "data_base_dir": "../data/outputs",
   "skip_indexing_if_exists": true,
   "default_n_results": 3,
