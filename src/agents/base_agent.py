@@ -5,20 +5,10 @@ Base agent class for BookSouls character and author agents.
 from abc import ABC, abstractmethod
 from typing import Dict, List, Optional, Any
 from dataclasses import dataclass
-import os
 
 from crewai import Agent
 from langchain_openai import ChatOpenAI
-from langchain.memory import ConversationBufferWindowMemory
 
-try:
-    from ..logs import log_llm_request, log_llm_response, LLMTimer
-except ImportError:
-    # For testing when running directly
-    import sys
-    import os
-    sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
-    from src.logs import log_llm_request, log_llm_response, LLMTimer
 
 
 @dataclass
@@ -37,7 +27,7 @@ class AgentConfig:
 class BaseAgent(ABC):
     """Abstract base class for BookSouls agents."""
     
-    def __init__(self, config: AgentConfig, book_context: str):
+    def __init__(self, config: AgentConfig):
         """
         Initialize the base agent.
         
@@ -46,11 +36,7 @@ class BaseAgent(ABC):
             book_context: Context about the book/story world
         """
         self.config = config
-        self.book_context = book_context
-        self.memory = ConversationBufferWindowMemory(
-            k=config.memory_window,
-            return_messages=True
-        )
+        self.book_context = ''
         
         # Initialize language model
         self.llm = ChatOpenAI(
@@ -59,11 +45,7 @@ class BaseAgent(ABC):
             max_tokens=config.max_tokens
         )
         
-        # Wrap LLM with logging
-        self._original_llm_call = self.llm._call
-        self.llm._call = self._logged_llm_call
-        
-        # Create CrewAI agent
+        # Create CrewAI agent with memory enabled
         self.agent = Agent(
             role=config.role,
             goal=config.goal,
@@ -74,39 +56,6 @@ class BaseAgent(ABC):
             memory=True
         )
     
-    def _logged_llm_call(self, prompt: str, stop: List[str] = None, **kwargs) -> str:
-        """Wrapper for LLM calls that adds logging."""
-        # Log the request
-        log_id = log_llm_request(
-            model_type="openai",
-            model_name=self.config.model_name,
-            request_type="agent_interaction",
-            prompt=prompt,
-            temperature=self.config.temperature,
-            max_tokens=self.config.max_tokens,
-            metadata={
-                "agent_name": self.config.name,
-                "agent_role": self.config.role
-            }
-        )
-        
-        try:
-            with LLMTimer("agent_llm_call") as timer:
-                response = self._original_llm_call(prompt, stop=stop, **kwargs)
-            
-            # Log the successful response
-            log_llm_response(
-                log_id,
-                response,
-                response_time_ms=int(timer.get_elapsed_ms())
-            )
-            
-            return response
-            
-        except Exception as e:
-            error_msg = f"Agent LLM call error: {str(e)}"
-            log_llm_response(log_id, "", error=error_msg)
-            raise e
     
     @abstractmethod
     def generate_system_prompt(self) -> str:
@@ -132,41 +81,8 @@ class BaseAgent(ABC):
         """
         pass
     
-    def update_memory(self, user_input: str, agent_response: str) -> None:
-        """
-        Update the agent's conversation memory.
-        
-        Args:
-            user_input: User's input
-            agent_response: Agent's response
-        """
-        self.memory.save_context(
-            {"input": user_input},
-            {"output": agent_response}
-        )
     
-    def get_memory_context(self) -> str:
-        """
-        Get the current memory context as a string.
-        
-        Returns:
-            Formatted memory context
-        """
-        messages = self.memory.chat_memory.messages
-        if not messages:
-            return ""
-        
-        context_parts = []
-        for message in messages[-self.config.memory_window:]:
-            if hasattr(message, 'content'):
-                role = "Human" if message.type == "human" else "Assistant"
-                context_parts.append(f"{role}: {message.content}")
-        
-        return "\n".join(context_parts)
     
-    def clear_memory(self) -> None:
-        """Clear the agent's conversation memory."""
-        self.memory.clear()
     
     def get_agent_info(self) -> Dict[str, Any]:
         """

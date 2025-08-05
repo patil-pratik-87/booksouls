@@ -238,8 +238,6 @@ def interactive_query(indexer, test_config=None):
     print("  ch <number>   - Get chapter content")
     print("  t <theme>     - Search by theme")
     print("  p <query>     - Search character profiles")
-    print("  traits <trait> - Find characters by trait")
-    print("  similar <char> - Find similar characters")
     print("  stats         - Show statistics")
     print("  help          - Show commands")
     print("  quit          - Exit")
@@ -263,8 +261,6 @@ def interactive_query(indexer, test_config=None):
                 print("  ch <number>   - Get chapter content")
                 print("  t <theme>     - Search by theme")
                 print("  p <query>     - Search character profiles")
-                print("  traits <trait> - Find characters by trait")
-                print("  similar <char> - Find similar characters")
                 print("  stats         - Show statistics")
                 
             elif user_input.lower() == 'stats':
@@ -303,7 +299,7 @@ def interactive_query(indexer, test_config=None):
             elif user_input.startswith('t '):
                 theme = user_input[2:].strip()
                 if theme:
-                    results = indexer.get_thematic_content(theme, n_results=test_config.default_n_results)
+                    results = indexer.get_narrative_content(theme, n_results=test_config.default_n_results)
                     print_results(results, f"Theme: {theme}", test_config)
                     
             elif user_input.startswith('p '):
@@ -311,18 +307,6 @@ def interactive_query(indexer, test_config=None):
                 if query:
                     results = indexer.query_character_profiles(query, n_results=test_config.default_n_results)
                     print_results(results, f"Character Profiles: '{query}'", test_config)
-                    
-            elif user_input.startswith('traits '):
-                trait = user_input[7:].strip()
-                if trait:
-                    results = indexer.get_character_by_traits([trait], n_results=test_config.default_n_results)
-                    print_results(results, f"Characters with trait: {trait}", test_config)
-                    
-            elif user_input.startswith('similar '):
-                character = user_input[8:].strip()
-                if character:
-                    results = indexer.find_similar_characters(character, n_results=test_config.default_n_results)
-                    print_results(results, f"Characters similar to: {character}", test_config)
                     
             else:
                 print("❌ Unknown command. Type 'help' for commands.")

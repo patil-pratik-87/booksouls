@@ -387,44 +387,148 @@ class DualVectorIndexer:
     
     def query_dialogue(self, query: str, n_results: int = None,
                       character: Optional[str] = None,
-                      where: Optional[Dict] = None) -> Dict[str, Any]:
+                      where: Optional[Dict] = None,
+                      # Extended filtering parameters
+                      dialogue_type: Optional[str] = None,  # "scene", "character_dialogue", "character_profile"
+                      addressee: Optional[str] = None,
+                      emotion: Optional[str] = None,
+                      chapter_number: Optional[int] = None,
+                      scene_id: Optional[str] = None,
+                      setting: Optional[str] = None,
+                      participants: Optional[List[str]] = None,
+                      personality_traits: Optional[List[str]] = None,
+                      emotional_state: Optional[str] = None) -> Dict[str, Any]:
         """
-        Query dialogue store for Character Agents.
+        Enhanced query dialogue store with comprehensive filtering.
         
         Args:
             query: Search query for character/dialogue content
             n_results: Number of results to return
             character: Optional specific character filter
-            where: Optional metadata filters
+            where: Optional metadata filters (will be merged with other filters)
+            
+            # Extended filters:
+            dialogue_type: Filter by type ("scene", "character_dialogue", "character_profile")
+            addressee: Who the character is speaking to
+            emotion: Emotional state of the dialogue
+            chapter_number: Filter by chapter
+            scene_id: Filter by specific scene
+            setting: Scene location/setting (for scene queries)
+            participants: List of characters (for scene queries)
+            personality_traits: List of traits (for profile queries)
+            emotional_state: Character's emotional state (for profile queries)
         """
         if n_results is None:
             n_results = self.config.dialogue_query.n_results
-            
-        # Add character filter if specified
-        if character and where is None:
-            where = {"character": character}
-        elif character and where is not None:
-            where["character"] = character
         
-        results = self.dialogue_collection.query(
-            query_texts=[query],
-            n_results=n_results,
-            where=where,
-            include=self.config.dialogue_query.include
-        )
+        # Build comprehensive where filter using ChromaDB operators
+        conditions = []
+        
+        # Add existing where conditions (wrap if needed)
+        if where:
+            # If where already has operators, use as-is, otherwise wrap with $eq
+            if any(key.startswith('$') for key in where.keys()):
+                conditions.append(where)
+            else:
+                # Convert simple dict to operator format
+                for key, value in where.items():
+                    conditions.append({key: {"$eq": value}})
+        
+        # Add dialogue type filter
+        if dialogue_type:
+            conditions.append({"type": {"$eq": dialogue_type}})
+        
+        # Add character filter  
+        if character:
+            conditions.append({"character": {"$eq": character}})
+            
+        # Add specific filters
+        if addressee:
+            conditions.append({"addressee": {"$eq": addressee}})
+        if emotion:
+            conditions.append({"emotion": {"$eq": emotion}})
+        if chapter_number:
+            conditions.append({"chapter_number": {"$eq": chapter_number}})
+        if scene_id:
+            conditions.append({"scene_id": {"$eq": scene_id}})
+        if emotional_state:
+            conditions.append({"emotional_state": {"$eq": emotional_state}})
+        
+        # Construct final where clause
+        if len(conditions) == 0:
+            filter_dict = None
+        elif len(conditions) == 1:
+            # For single condition, use the condition directly
+            filter_dict = conditions[0]
+        else:
+            # For multiple conditions, use $and operator
+            filter_dict = {"$and": conditions}
+        
+        # Enhance query with additional context
+        query_parts = [query]
+        
+        # Add setting to query for better semantic matching
+        if setting:
+            query_parts.append(f"setting {setting}")
+            
+        # Add participants to query for scene searches
+        if participants:
+            query_parts.extend([f"participant {p}" for p in participants])
+            
+        # Add personality traits to query for profile searches
+        if personality_traits:
+            query_parts.extend(personality_traits)
+            
+        # Add addressee to query for better matching
+        if addressee and character:
+            query_parts.append(f"{character} speaking to {addressee}")
+            
+        # Add emotion to query for better matching
+        if emotion:
+            query_parts.append(f"emotion {emotion}")
+        
+        enhanced_query = " ".join(query_parts)
+        
+        # Debug: Print filter structure
+        print(f"DEBUG: Enhanced query: {enhanced_query}")
+        print(f"DEBUG: Filter dict: {filter_dict}")
+        print(f"DEBUG: Number of conditions: {len(conditions) if 'conditions' in locals() else 'N/A'}")
+        
+        try:
+            results = self.dialogue_collection.query(
+                query_texts=[enhanced_query],
+                n_results=n_results,
+                where=filter_dict,
+                include=self.config.dialogue_query.include
+            )
+        except Exception as e:
+            print(f"DEBUG: ChromaDB query failed with filter: {filter_dict}")
+            print(f"DEBUG: Error: {str(e)}")
+            # Fallback: try without filters
+            print("DEBUG: Retrying without filters...")
+            results = self.dialogue_collection.query(
+                query_texts=[enhanced_query],
+                n_results=n_results,
+                where=None,
+                include=self.config.dialogue_query.include
+            )
         
         return {
-            'query': query,
+            'query': enhanced_query,
+            'original_query': query,
+            'filters_applied': filter_dict,
             'character_filter': character,
             'results': results,
             'store_type': 'dialogue'
         }
     
-    def get_character_dialogues(self, character: str, limit: int = 10) -> Dict[str, Any]:
+    def get_character_dialogues(self, character: str, addressee:Optional[str] = None, limit: int = 10) -> Dict[str, Any]:
         """Get all dialogues for a specific character."""
         return self.query_dialogue(
-            query=f"character dialogue {character}",
+            query=f"{character}: all dialogues",
             character=character,
+            addressee=addressee,
+            dialogue_type="character_dialogue",
             n_results=limit
         )
     
@@ -435,33 +539,19 @@ class DualVectorIndexer:
             where={"chapter_number": chapter_number}
         )
     
-    def get_thematic_content(self, theme: str, n_results: int = 5) -> Dict[str, Any]:
-        """Search for content by theme."""
+    def get_narrative_content(self, theme: str, n_results: int = 5) -> Dict[str, Any]:
+        """Search for narrative content"""
         return self.query_narrative(
             query=f"theme {theme}",
             n_results=n_results
         )
     
-    def query_character_profiles(self, query: str, n_results: int = 5) -> Dict[str, Any]:
+    def query_character_profiles(self,character: str, n_results: int = 5) -> Dict[str, Any]:
         """Search character profiles by traits, motivations, etc."""
         return self.query_dialogue(
-            query=query,
-            n_results=n_results,
-            where={"type": "character_profile"}
-        )
-    
-    def find_similar_characters(self, character: str, n_results: int = 3) -> Dict[str, Any]:
-        """Find characters similar to the given character."""
-        return self.query_character_profiles(
-            query=f"character personality like {character}",
-            n_results=n_results
-        )
-    
-    def get_character_by_traits(self, traits: List[str], n_results: int = 5) -> Dict[str, Any]:
-        """Find characters with specific personality traits."""
-        traits_query = " ".join(traits)
-        return self.query_character_profiles(
-            query=f"personality traits {traits_query}",
+            query=f'{character} character profile traits personality',
+            character=character,
+            dialogue_type="character_profile",
             n_results=n_results
         )
     

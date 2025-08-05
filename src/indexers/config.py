@@ -101,5 +101,5 @@ def get_openai_config(api_key: str = None) -> IndexerConfig:
             api_key=api_key
         ),
         narrative_query=QueryConfig(n_results=8),
-        dialogue_query=QueryConfig(n_results=16)
+        dialogue_query=QueryConfig(n_results=20)
     )

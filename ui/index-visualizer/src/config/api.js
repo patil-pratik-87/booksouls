@@ -21,6 +21,10 @@ export const API_ENDPOINTS = {
         index: `${API_BASE_URL}/api/indexer/index`,
         upload: `${API_BASE_URL}/api/indexer/index/upload`,
     },
+    characters: {
+        list: `${API_BASE_URL}/api/characters/list`,
+        chat: `${API_BASE_URL}/api/characters/chat`,
+    },
     health: `${API_BASE_URL}/api/health`,
 };
 

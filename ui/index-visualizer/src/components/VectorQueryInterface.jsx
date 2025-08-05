@@ -17,7 +17,11 @@ import {
   Select,
   MenuItem,
   Grid,
-  Divider
+  Divider,
+  Accordion,
+  AccordionSummary,
+  AccordionDetails,
+  Autocomplete
 } from '@mui/material';
 import {
   Search as SearchIcon,
@@ -27,7 +31,9 @@ import {
   Refresh as RefreshIcon,
   Psychology as PsychologyIcon,
   FindInPage as FindInPageIcon,
-  Group as GroupIcon
+  Group as GroupIcon,
+  ExpandMore as ExpandMoreIcon,
+  FilterList as FilterListIcon
 } from '@mui/icons-material';
 import { API_ENDPOINTS, apiCall } from '../config/api';
 import VectorResultDetail from './VectorResultDetail';
@@ -47,10 +53,31 @@ const VectorQueryInterface = () => {
   const [isIndexerReady, setIsIndexerReady] = useState(false);
   const [selectedResult, setSelectedResult] = useState(null);
 
+  // Enhanced dialogue filtering states
+  const [dialogueType, setDialogueType] = useState('');
+  const [addressee, setAddressee] = useState('');
+  const [emotion, setEmotion] = useState('');
+  const [sceneId, setSceneId] = useState('');
+  const [setting, setSetting] = useState('');
+  const [participants, setParticipants] = useState('');
+  const [personalityTraits, setPersonalityTraits] = useState('');
+  const [emotionalState, setEmotionalState] = useState('');
+
+  // Available characters state
+  const [availableCharacters, setAvailableCharacters] = useState([]);
+  const [charactersLoading, setCharactersLoading] = useState(false);
+
   // Initialize indexer when component mounts
   useEffect(() => {
     initializeIndexer();
   }, []);
+
+  // Fetch available characters when indexer is ready
+  useEffect(() => {
+    if (isIndexerReady) {
+      fetchAvailableCharacters();
+    }
+  }, [isIndexerReady]);
 
   const initializeIndexer = async () => {
     try {
@@ -65,6 +92,22 @@ const VectorQueryInterface = () => {
       setError(`Error connecting to indexer service: ${err.message}`);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchAvailableCharacters = async () => {
+    try {
+      setCharactersLoading(true);
+      const data = await apiCall(API_ENDPOINTS.characters.list, {
+        method: 'GET'
+      });
+      
+      setAvailableCharacters(data.available_characters || []);
+    } catch (err) {
+      console.error('Failed to fetch available characters:', err);
+      setAvailableCharacters([]);
+    } finally {
+      setCharactersLoading(false);
     }
   };
 
@@ -84,6 +127,17 @@ const VectorQueryInterface = () => {
           break;
         case 'dialogue':
           body.query = query;
+          // Add enhanced dialogue filtering parameters
+          if (character) body.character = character;
+          if (dialogueType) body.dialogue_type = dialogueType;
+          if (addressee) body.addressee = addressee;
+          if (emotion) body.emotion = emotion;
+          if (chapterNumber) body.chapter_number = parseInt(chapterNumber);
+          if (sceneId) body.scene_id = sceneId;
+          if (setting) body.setting = setting;
+          if (participants) body.participants = participants.split(',').map(p => p.trim()).filter(p => p);
+          if (personalityTraits) body.personality_traits = personalityTraits.split(',').map(t => t.trim()).filter(t => t);
+          if (emotionalState) body.emotional_state = emotionalState;
           break;
         case 'character':
           body.character = character;
@@ -144,15 +198,49 @@ const VectorQueryInterface = () => {
         );
       case 'character':
         return (
-          <TextField
-            fullWidth
-            label="Character Name"
-            value={character}
-            onChange={(e) => setCharacter(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder="Enter character name..."
-            variant="outlined"
-          />
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            {/* Character Selection */}
+            <Autocomplete
+              options={availableCharacters}
+              value={character || null}
+              onChange={(_, newValue) => setCharacter(newValue || '')}
+              loading={charactersLoading}
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  label="Select Character"
+                  placeholder="Choose a character to get their dialogues"
+                  variant="outlined"
+                  InputProps={{
+                    ...params.InputProps,
+                    endAdornment: (
+                      <>
+                        {charactersLoading ? <CircularProgress color="inherit" size={20} /> : null}
+                        {params.InputProps.endAdornment}
+                      </>
+                    ),
+                  }}
+                />
+              )}
+              renderOption={(props, option) => (
+                <Box component="li" {...props}>
+                  <PersonIcon sx={{ mr: 1, color: 'primary.main' }} />
+                  {option}
+                </Box>
+              )}
+              freeSolo
+              clearOnBlur
+              selectOnFocus
+              handleHomeEndKeys
+            />
+            
+            {/* Character Count Display */}
+            {availableCharacters.length > 0 && (
+              <Typography variant="caption" color="text.secondary">
+                Select from {availableCharacters.length} available characters
+              </Typography>
+            )}
+          </Box>
         );
       case 'chapter':
         return (
@@ -181,33 +269,303 @@ const VectorQueryInterface = () => {
         );
       case 'character_traits':
         return (
-          <TextField
-            fullWidth
-            label="Character Traits"
-            value={characterTraits}
-            onChange={(e) => setCharacterTraits(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder="Enter traits (e.g., brave, wise, conflicted)..."
-            variant="outlined"
-            multiline
-            rows={2}
-          />
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            {/* Character Selection */}
+            <Autocomplete
+              options={availableCharacters}
+              value={character || null}
+              onChange={(_, newValue) => setCharacter(newValue || '')}
+              loading={charactersLoading}
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  label="Select Character (Optional)"
+                  placeholder="Choose a character or leave empty for all characters"
+                  variant="outlined"
+                  InputProps={{
+                    ...params.InputProps,
+                    endAdornment: (
+                      <>
+                        {charactersLoading ? <CircularProgress color="inherit" size={20} /> : null}
+                        {params.InputProps.endAdornment}
+                      </>
+                    ),
+                  }}
+                />
+              )}
+              renderOption={(props, option) => (
+                <Box component="li" {...props}>
+                  <PersonIcon sx={{ mr: 1, color: 'primary.main' }} />
+                  {option}
+                </Box>
+              )}
+              freeSolo
+              clearOnBlur
+              selectOnFocus
+              handleHomeEndKeys
+            />
+            
+            {/* Character Traits Search */}
+            <TextField
+              fullWidth
+              label="Character Traits Query"
+              value={characterTraits}
+              onChange={(e) => setCharacterTraits(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder="Enter traits or personality queries (e.g., wise mentor, conflicted hero)..."
+              variant="outlined"
+              multiline
+              rows={2}
+            />
+            
+            {/* Character Count Display */}
+            {availableCharacters.length > 0 && (
+              <Typography variant="caption" color="text.secondary">
+                {availableCharacters.length} characters available: {availableCharacters.slice(0, 5).join(', ')}
+                {availableCharacters.length > 5 && ` and ${availableCharacters.length - 5} more...`}
+              </Typography>
+            )}
+          </Box>
         );
       case 'similar_character':
         return (
-          <TextField
-            fullWidth
-            label="Character Name"
-            value={similarCharacter}
-            onChange={(e) => setSimilarCharacter(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder="Enter character name to find similar..."
-            variant="outlined"
-          />
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            {/* Character Selection */}
+            <Autocomplete
+              options={availableCharacters}
+              value={similarCharacter || null}
+              onChange={(_, newValue) => setSimilarCharacter(newValue || '')}
+              loading={charactersLoading}
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  label="Select Character"
+                  placeholder="Choose a character to find similar ones"
+                  variant="outlined"
+                  InputProps={{
+                    ...params.InputProps,
+                    endAdornment: (
+                      <>
+                        {charactersLoading ? <CircularProgress color="inherit" size={20} /> : null}
+                        {params.InputProps.endAdornment}
+                      </>
+                    ),
+                  }}
+                />
+              )}
+              renderOption={(props, option) => (
+                <Box component="li" {...props}>
+                  <PersonIcon sx={{ mr: 1, color: 'primary.main' }} />
+                  {option}
+                </Box>
+              )}
+              freeSolo
+              clearOnBlur
+              selectOnFocus
+              handleHomeEndKeys
+            />
+            
+            {/* Character Count Display */}
+            {availableCharacters.length > 0 && (
+              <Typography variant="caption" color="text.secondary">
+                Select from {availableCharacters.length} available characters
+              </Typography>
+            )}
+          </Box>
         );
       default:
         return null;
     }
+  };
+
+  const renderDialogueFilters = () => {
+    if (queryType !== 'dialogue') return null;
+
+    return (
+      <Accordion sx={{ mt: 2 }}>
+        <AccordionSummary
+          expandIcon={<ExpandMoreIcon />}
+          aria-controls="dialogue-filters-content"
+          id="dialogue-filters-header"
+        >
+          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+            <FilterListIcon sx={{ mr: 1 }} />
+            <Typography>Advanced Dialogue Filters</Typography>
+          </Box>
+        </AccordionSummary>
+        <AccordionDetails>
+          <Grid container spacing={2}>
+            {/* Dialogue Type Filter */}
+            <Grid item xs={12} sm={6} md={4}>
+              <FormControl fullWidth size="small">
+                <InputLabel>Dialogue Type</InputLabel>
+                <Select
+                  value={dialogueType}
+                  label="Dialogue Type"
+                  onChange={(e) => setDialogueType(e.target.value)}
+                >
+                  <MenuItem value="">All Types</MenuItem>
+                  <MenuItem value="scene">Scene Conversations</MenuItem>
+                  <MenuItem value="character_dialogue">Character Dialogues</MenuItem>
+                  <MenuItem value="character_profile">Character Profiles</MenuItem>
+                </Select>
+              </FormControl>
+            </Grid>
+
+            {/* Character Filter */}
+            <Grid item xs={12} sm={6} md={4}>
+              <TextField
+                fullWidth
+                size="small"
+                label="Character"
+                value={character}
+                onChange={(e) => setCharacter(e.target.value)}
+                placeholder="e.g., Gandalf, Frodo"
+              />
+            </Grid>
+
+            {/* Addressee Filter */}
+            <Grid item xs={12} sm={6} md={4}>
+              <TextField
+                fullWidth
+                size="small"
+                label="Speaking To"
+                value={addressee}
+                onChange={(e) => setAddressee(e.target.value)}
+                placeholder="e.g., Frodo, Bilbo"
+              />
+            </Grid>
+
+            {/* Emotion Filter */}
+            <Grid item xs={12} sm={6} md={4}>
+              <FormControl fullWidth size="small">
+                <InputLabel>Emotion</InputLabel>
+                <Select
+                  value={emotion}
+                  label="Emotion"
+                  onChange={(e) => setEmotion(e.target.value)}
+                >
+                  <MenuItem value="">Any Emotion</MenuItem>
+                  <MenuItem value="angry">Angry</MenuItem>
+                  <MenuItem value="sad">Sad</MenuItem>
+                  <MenuItem value="happy">Happy</MenuItem>
+                  <MenuItem value="fearful">Fearful</MenuItem>
+                  <MenuItem value="determined">Determined</MenuItem>
+                  <MenuItem value="confused">Confused</MenuItem>
+                  <MenuItem value="neutral">Neutral</MenuItem>
+                  <MenuItem value="concerned">Concerned</MenuItem>
+                  <MenuItem value="joyful">Joyful</MenuItem>
+                </Select>
+              </FormControl>
+            </Grid>
+
+            {/* Chapter Number Filter */}
+            <Grid item xs={12} sm={6} md={4}>
+              <TextField
+                fullWidth
+                size="small"
+                type="number"
+                label="Chapter Number"
+                value={chapterNumber}
+                onChange={(e) => setChapterNumber(e.target.value)}
+                placeholder="e.g., 1, 2, 3"
+              />
+            </Grid>
+
+            {/* Scene ID Filter */}
+            <Grid item xs={12} sm={6} md={4}>
+              <TextField
+                fullWidth
+                size="small"
+                label="Scene ID"
+                value={sceneId}
+                onChange={(e) => setSceneId(e.target.value)}
+                placeholder="e.g., ch1_scene0"
+              />
+            </Grid>
+
+            {/* Setting Filter */}
+            <Grid item xs={12} sm={6} md={4}>
+              <TextField
+                fullWidth
+                size="small"
+                label="Setting"
+                value={setting}
+                onChange={(e) => setSetting(e.target.value)}
+                placeholder="e.g., Great Hall, Shire"
+              />
+            </Grid>
+
+            {/* Participants Filter */}
+            <Grid item xs={12} sm={6} md={4}>
+              <TextField
+                fullWidth
+                size="small"
+                label="Scene Participants"
+                value={participants}
+                onChange={(e) => setParticipants(e.target.value)}
+                placeholder="Gandalf, Frodo, Bilbo (comma-separated)"
+              />
+            </Grid>
+
+            {/* Personality Traits Filter */}
+            <Grid item xs={12} sm={6} md={4}>
+              <TextField
+                fullWidth
+                size="small"
+                label="Personality Traits"
+                value={personalityTraits}
+                onChange={(e) => setPersonalityTraits(e.target.value)}
+                placeholder="wise, brave, loyal (comma-separated)"
+              />
+            </Grid>
+
+            {/* Emotional State Filter */}
+            <Grid item xs={12} sm={6} md={4}>
+              <FormControl fullWidth size="small">
+                <InputLabel>Emotional State</InputLabel>
+                <Select
+                  value={emotionalState}
+                  label="Emotional State"
+                  onChange={(e) => setEmotionalState(e.target.value)}
+                >
+                  <MenuItem value="">Any State</MenuItem>
+                  <MenuItem value="concerned">Concerned</MenuItem>
+                  <MenuItem value="determined">Determined</MenuItem>
+                  <MenuItem value="conflicted">Conflicted</MenuItem>
+                  <MenuItem value="hopeful">Hopeful</MenuItem>
+                  <MenuItem value="melancholic">Melancholic</MenuItem>
+                  <MenuItem value="vigilant">Vigilant</MenuItem>
+                </Select>
+              </FormControl>
+            </Grid>
+
+            {/* Clear Filters Button */}
+            <Grid item xs={12}>
+              <Button
+                variant="outlined"
+                size="small"
+                onClick={() => {
+                  setDialogueType('');
+                  setCharacter('');
+                  setAddressee('');
+                  setEmotion('');
+                  setChapterNumber('');
+                  setSceneId('');
+                  setSetting('');
+                  setParticipants('');
+                  setPersonalityTraits('');
+                  setEmotionalState('');
+                }}
+                sx={{ mt: 1 }}
+              >
+                Clear All Filters
+              </Button>
+            </Grid>
+          </Grid>
+        </AccordionDetails>
+      </Accordion>
+    );
   };
 
   const handleResultClick = (id, document, metadata, similarity) => {
@@ -376,9 +734,22 @@ const VectorQueryInterface = () => {
 
   return (
     <Box sx={{ p: 3 }}>
-      <Typography variant="h4" gutterBottom>
-        Vector Query Interface
-      </Typography>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+        <Typography variant="h4">
+          Vector Query Interface
+        </Typography>
+        
+        {/* Character refresh button */}
+        <Button
+          variant="outlined"
+          size="small"
+          onClick={fetchAvailableCharacters}
+          disabled={charactersLoading}
+          startIcon={charactersLoading ? <CircularProgress size={16} /> : <RefreshIcon />}
+        >
+          {charactersLoading ? 'Loading...' : `Refresh Characters (${availableCharacters.length})`}
+        </Button>
+      </Box>
 
       {stats && (
         <Alert severity="info" sx={{ mb: 3 }}>
@@ -469,6 +840,8 @@ const VectorQueryInterface = () => {
           </Alert>
         )}
       </Paper>
+
+      {renderDialogueFilters()}
 
       {renderResults()}
 
